@@ -1,0 +1,8 @@
+boto3==1.4.5 #no-deploy
+botocore==1.5.92 #no-deploy
+moto #no-deploy
+PyJWT==1.5.3
+requests==2.18.4
+requests-aws4auth==0.9 #no-deploy
+tox #no-deploy
+warrant==0.2.0 #no-deploy

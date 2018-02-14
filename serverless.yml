@@ -1,0 +1,134 @@
+service: test-cognito-sync
+
+frameworkVersion: ">=1.26"
+
+plugins:
+  - serverless-pseudo-parameters
+
+package:
+  exclude:
+    - "*/**"
+    - "*"
+  include:
+    - lambda/**
+
+custom: ${file(../serverless_properties.yml):${opt:stage, file(../serverless_properties.yml):default_vars.defaultProfile}}
+
+provider:
+  name: aws
+  runtime: python3.6
+  region: eu-west-1
+  stage: ${opt:stage, file(../serverless_helpers.js):userNameSuffix}
+  cfLogs: true
+  deploymentBucket: shared-serverless-deploys-${self:provider.region}
+  versionFunctions: false
+
+functions:
+  defineChallenge:
+    handler: lambda/handler.define_challenge
+    events:
+      - cognitoUserPool:
+          pool: TestUserPool
+          trigger: DefineAuthChallenge
+
+resources:
+  Description: ${self:provider.stage} - Permission Updates Listener
+
+  Resources:
+    CognitoUserPoolTestUserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        AdminCreateUserConfig:
+          AllowAdminCreateUserOnly: false
+          UnusedAccountValidityDays: 365
+        AutoVerifiedAttributes:
+          - email
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 8
+            RequireLowercase: false
+            RequireNumbers: false
+            RequireSymbols: false
+            RequireUppercase: false
+        UserPoolName: ${self:service}_${self:provider.stage}_usp
+
+
+    TestClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: Client
+        GenerateSecret: false
+        UserPoolId:
+          Ref:  CognitoUserPoolTestUserPool
+
+    AdminClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: Admin
+        GenerateSecret: false
+        UserPoolId:
+          Ref:  CognitoUserPoolTestUserPool
+        ExplicitAuthFlows:
+          - CUSTOM_AUTH_FLOW_ONLY
+
+
+    TestIdentityPool:
+      Type: AWS::Cognito::IdentityPool
+      Properties:
+        IdentityPoolName: testcognitosync${self:provider.stage}
+        AllowUnauthenticatedIdentities: false
+        CognitoIdentityProviders:
+          -
+            ClientId:
+              Ref: TestClient
+            ProviderName:
+              Fn::GetAtt: [CognitoUserPoolTestUserPool, ProviderName]
+            ServerSideTokenCheck: true
+          -
+            ClientId:
+              Ref: AdminClient
+            ProviderName:
+              Fn::GetAtt: [CognitoUserPoolTestUserPool, ProviderName]
+            ServerSideTokenCheck: true
+
+    TestIDPRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            -
+              Effect: Allow
+              Principal:
+                Federated:
+                  - cognito-identity.amazonaws.com
+              Action:
+                - sts:AssumeRoleWithWebIdentity
+              Condition:
+                StringEquals:
+                  cognito-identity.amazonaws.com:aud:
+                    - Ref: TestIdentityPool
+                ForAnyValue:StringLike:
+                  cognito-identity.amazonaws.com:amr:
+                    - authenticated
+        Path: "/"
+        Policies:
+          -
+            PolicyName: FederatedIdentityPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                -
+                  Effect: Allow
+                  Action: execute-api:Invoke
+                  Resource: arn:aws:execute-api:#{AWS::Region}:#{AWS::AccountId}:*
+
+
+    TestPoolRoleAttach:
+      Type: AWS::Cognito::IdentityPoolRoleAttachment
+      Properties:
+        IdentityPoolId:
+          Ref: TestIdentityPool
+        Roles:
+          authenticated:
+            Fn::GetAtt: [TestIDPRole, Arn]

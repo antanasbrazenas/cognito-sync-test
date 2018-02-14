@@ -1,0 +1,17 @@
+target
+.idea
+*.ipr
+*.iml
+.serverless/
+.DS_Store
+.tox
+node_modules/
+.requirements/
+scripts/local_config.ini
+*/__pycache__/
+*.pyc
+package-lock.json
+MANIFEST
+htmlcov
+.coverage
+.cache/

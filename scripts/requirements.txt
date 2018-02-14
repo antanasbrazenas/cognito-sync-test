@@ -1,0 +1,5 @@
+boto3==1.4.5
+botocore==1.5.92
+requests==2.18.3
+requests-aws4auth==0.9
+warrant==0.2.0
