@@ -12,13 +12,11 @@ package:
   include:
     - lambda/**
 
-custom: ${file(../serverless_properties.yml):${opt:stage, file(../serverless_properties.yml):default_vars.defaultProfile}}
-
 provider:
   name: aws
   runtime: python3.6
   region: eu-west-1
-  stage: ${opt:stage, file(../serverless_helpers.js):userNameSuffix}
+  stage: ${opt:stage, file(serverless_helpers.js):userNameSuffix}
   cfLogs: true
   deploymentBucket: shared-serverless-deploys-${self:provider.region}
   versionFunctions: false
@@ -120,8 +118,11 @@ resources:
               Statement:
                 -
                   Effect: Allow
-                  Action: execute-api:Invoke
-                  Resource: arn:aws:execute-api:#{AWS::Region}:#{AWS::AccountId}:*
+                  Action:
+                    - cognito-sync:ListRecords
+                  Resource:
+                    - Fn::Join: ['', ['arn:aws:cognito-sync:#{AWS::Region}:#{AWS::AccountId}:identitypool/', Ref: TestIdentityPool, '/identity/*']]
+                    #- arn:aws:cognito-sync:#{AWS::Region}:#{AWS::AccountId}:identitypool/#{AWS::Region}:ef961ff1-0880-4dac-80e7-95f73dfd9cac/identity/eu-west-1:9166cdc2-8972-4330-8bd8-ff79a7793510/dataset/PermissionService
 
 
     TestPoolRoleAttach:
