@@ -30,7 +30,7 @@ functions:
           trigger: DefineAuthChallenge
 
 resources:
-  Description: ${self:provider.stage} - Permission Updates Listener
+  Description: ${self:provider.stage} - Cognito Sync demo
 
   Resources:
     CognitoUserPoolTestUserPool:
